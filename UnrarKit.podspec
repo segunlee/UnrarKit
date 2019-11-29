@@ -1,12 +1,12 @@
 Pod::Spec.new do |s|
   s.name             = "UnrarKit"
-  s.version          = ENV["TRAVIS_TAG"]
+  s.version          = "1.0.0"
   s.summary          = "UnrarKit is here to enable Mac and iOS Cocoa apps to easily work with RAR files for read-only operations"
   s.license          = "BSD"
   s.homepage         = "https://github.com/abbeycode/UnrarKit"
   s.author           = { "Dov Frankel" => "dov@abbey-code.com" }
   s.social_media_url = "https://twitter.com/dovfrankel"
-  s.source           = { :git => "https://github.com/abbeycode/UnrarKit.git", :tag => "#{s.version}" }
+  s.source           = { :git => "https://github.com/abbeycode/UnrarKit.git" }
   s.ios.deployment_target = "9.0"
   s.osx.deployment_target = "10.9"
   s.requires_arc = "Classes/**/*"

@@ -4,6 +4,7 @@
 //
 //
 
+#import <UIKit/UIKit.h>
 #import "URKArchive.h"
 #import "URKFileInfo.h"
 #import "UnrarKitMacros.h"
@@ -1125,6 +1126,78 @@ NS_DESIGNATED_INITIALIZER
     }
     
     return !corruptDataFound;
+}
+
+- (BOOL)extractImageFileCGSizeWithCompletion:(void(^)(NSArray<NSDictionary<NSString *, NSString *> *> *data))completion {
+	__weak URKArchive *welf = self;
+	
+	BOOL success = [self performActionWithArchiveOpen:^(NSError **innerError) {
+		NSArray<NSString *> *fileNames = [self listFilenames:NULL];
+		fileNames = [fileNames sortedArrayUsingComparator:^NSComparisonResult(NSString *obj1, NSString *obj2) {
+			return [obj1 compare:obj2 options:NSNumericSearch];
+		}];
+		NSMutableArray *collector = [NSMutableArray new];
+		for (NSString *fileName in fileNames) {
+			if (NO == [@[@"JPG", @"JPEG", @"PNG", @"GIF"] containsObject:fileName.pathExtension.uppercaseString]) {
+				continue;
+			}
+			
+			int RHCode = 0, PFCode = 0;
+			URKFileInfo *fileInfo;
+			
+			BOOL skipThis = NO;
+			while ((RHCode = RARReadHeaderEx(welf.rarFile, welf.header)) == ERAR_SUCCESS) {
+				if ([self headerContainsErrors:innerError]) {
+					skipThis = YES;
+					break;
+				}
+				fileInfo = [URKFileInfo fileInfo:welf.header];
+				if ([fileInfo.filename isEqualToString:fileName]) {
+					break;
+				}
+				else {
+					if ((PFCode = RARProcessFile(welf.rarFile, RAR_SKIP, NULL, NULL)) != 0) {
+						skipThis = YES;
+						break;
+					}
+				}
+			}
+			
+			if (skipThis || fileInfo == nil) {
+				continue;
+			}
+			
+			
+			if (RHCode != ERAR_SUCCESS) {
+				continue;
+			}
+			
+			__block long long bytesRead = 0;
+			__block NSMutableData *collectData = [NSMutableData new];
+			
+			BOOL (^bufferedReadBlock)(NSData*) = ^BOOL(NSData *dataChunk) {
+				bytesRead += dataChunk.length;
+				
+				[collectData appendData:dataChunk];
+				
+				UIImage *image = [[UIImage alloc] initWithData:collectData];
+				if (image) {
+					[collector addObject:@{@"F": fileName, @"S": NSStringFromCGSize(image.size)}];
+					return NO;
+				}
+				
+				return YES;
+			};
+			RARSetCallback(welf.rarFile, BufferedReadCallbackProc, (long)bufferedReadBlock);
+			
+			PFCode = RARProcessFile(welf.rarFile, RAR_TEST, NULL, NULL);
+			
+			RARSetCallback(welf.rarFile, NULL, NULL);
+			
+		}
+		
+	} inMode:RAR_OM_EXTRACT error:NULL];
+	return success;
 }
 
 
